@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
+import { format } from 'date-fns';
 import DateSelector from '../components/DateSelector';
 import DayOfWeekSelector from '../components/DayOfWeekSelector';
 import TimeRangeSlider from '../components/TimeRangeSlider';
+import { api } from '../utils/api';
 
 type Tab = 'dates' | 'days';
 
 const CreateEvent: React.FC = () => {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
+    const [organizerName, setOrganizerName] = useState('');
     const [activeTab, setActiveTab] = useState<Tab>('dates');
 
     const [selectedDates, setSelectedDates] = useState<Date[]>([]);
@@ -34,10 +37,34 @@ const CreateEvent: React.FC = () => {
         );
     };
 
-    const handleSubmit = () => {
-        const eventId = Math.random().toString(36).substring(7);
-        console.log({ title, activeTab, selectedDates, selectedDays, startTime, endTime, timezone });
-        navigate(`/created/${eventId}`);
+    const handleSubmit = async () => {
+        if (!organizerName.trim()) {
+            alert('Please enter your name as the event organizer');
+            return;
+        }
+
+        try {
+            const formattedDates = selectedDates.map(date => format(date, 'yyyy-MM-dd'));
+
+            const response = await api.createEvent({
+                title: title || 'Untitled Event',
+                type: activeTab,
+                selectedDates: formattedDates,
+                selectedDays,
+                startTime,
+                endTime,
+                timezone,
+                organizerName: organizerName.trim(),
+            });
+
+            // Store organizer ID in localStorage
+            localStorage.setItem(`event_${response.eventId}_organizer`, organizerName.trim());
+
+            navigate(`/created/${response.eventId}`);
+        } catch (error) {
+            console.error('Failed to create event:', error);
+            alert('Failed to create event. Please try again.');
+        }
     };
 
     return (
@@ -56,6 +83,20 @@ const CreateEvent: React.FC = () => {
             </div>
 
             <div className="flex-col" style={{ gap: '2.5rem' }}>
+                {/* Organizer Name */}
+                <section>
+                    <h2 className="text-xl font-bold mb-1 text-white">What's your name?</h2>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-4">You're creating this event as the organizer</p>
+                    <input
+                        type="text"
+                        className="input-field"
+                        style={{ fontSize: '1.25rem', padding: '1rem' }}
+                        value={organizerName}
+                        onChange={(e) => setOrganizerName(e.target.value)}
+                        placeholder="Your Name (Required)"
+                    />
+                </section>
+
                 {/* Event Name */}
                 <section>
                     <h2 className="text-xl font-bold mb-1 text-white">Give your event a name!</h2>

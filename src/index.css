@@ -269,12 +269,14 @@ body {
 .heatmap-container {
   overflow-x: auto;
   padding-bottom: 1rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .heatmap-grid {
   display: grid;
   gap: 4px;
   /* grid-template-columns is set inline */
+  justify-items: stretch;
 }
 
 .heatmap-header-cell {
