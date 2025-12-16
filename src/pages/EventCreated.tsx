@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Share2, Copy, ArrowLeft } from 'lucide-react';
+import { Share2, Copy, ArrowLeft, Download } from 'lucide-react';
 import { parseISO } from 'date-fns';
 import Heatmap from '../components/Heatmap';
 import ParticipantList from '../components/ParticipantList';
+import ParticipantModal from '../components/ParticipantModal';
 import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
+import { downloadICS } from '../utils/icsGenerator';
+
+interface Participant {
+    participantId: string;
+    name: string;
+    ipAddress?: string;
+    joinedAt: string;
+}
 
 const EventCreated: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -17,21 +26,23 @@ const EventCreated: React.FC = () => {
     const [dates, setDates] = useState<Date[]>([]);
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('17:00');
-    const [participants, setParticipants] = useState<string[]>([]);
+    const [timezone, setTimezone] = useState('UTC');
+    const [participants, setParticipants] = useState<Participant[]>([]);
     const [votes, setVotes] = useState<Record<string, number>>({});
     const [isOrganizer, setIsOrganizer] = useState(false);
     const [isFinalized, setIsFinalized] = useState(false);
     const [finalizedTime, setFinalizedTime] = useState<string | null>(null);
     const [organizerName, setOrganizerName] = useState('');
+    const [selectedParticipant, setSelectedParticipant] = useState<{ id: string; name: string } | null>(null);
 
-    const dedupeNames = (names: string[]) => {
+    const dedupeParticipants = (participantList: Participant[]) => {
         const seen = new Set<string>();
-        const unique: string[] = [];
-        names.forEach(name => {
-            const key = name.trim().toLowerCase();
+        const unique: Participant[] = [];
+        participantList.forEach(participant => {
+            const key = `${participant.participantId}-${participant.name.trim().toLowerCase()}`;
             if (!seen.has(key)) {
                 seen.add(key);
-                unique.push(name);
+                unique.push(participant);
             }
         });
         return unique;
@@ -48,7 +59,12 @@ const EventCreated: React.FC = () => {
             // Listen for participant updates
             socket.on('participant_joined', (data) => {
                 console.log('Participant joined:', data);
-                setParticipants(prev => dedupeNames([...prev, data.name]));
+                setParticipants(prev => dedupeParticipants([...prev, {
+                    participantId: data.participantId,
+                    name: data.name,
+                    ipAddress: data.ipAddress,
+                    joinedAt: data.joinedAt
+                }]));
             });
 
             // Listen for vote updates
@@ -68,10 +84,19 @@ const EventCreated: React.FC = () => {
                 setFinalizedTime(data.finalizedTime);
             });
 
+            // Listen for user blocks
+            socket.on('user_blocked', (data) => {
+                console.log('User blocked:', data);
+                setParticipants(prev => prev.filter(p => p.ipAddress !== data.ipAddress));
+                // Reload votes to reflect the blocked user's votes being removed
+                loadEventData();
+            });
+
             return () => {
                 socket.off('participant_joined');
                 socket.off('votes_updated');
                 socket.off('event_finalized');
+                socket.off('user_blocked');
                 leaveEventRoom(id);
             };
         }
@@ -88,6 +113,7 @@ const EventCreated: React.FC = () => {
             setEventTitle(event.title);
             setStartTime(event.startTime);
             setEndTime(event.endTime);
+            setTimezone(event.timezone);
             setOrganizerName(event.organizerName);
             setIsFinalized(event.isFinalized);
             setFinalizedTime(event.finalizedTime);
@@ -102,7 +128,7 @@ const EventCreated: React.FC = () => {
                 setDates(event.selectedDates.map(d => parseISO(d)));
             }
 
-            setParticipants(dedupeNames(participantsData.map(p => p.name)));
+            setParticipants(dedupeParticipants(participantsData));
 
             const voteCount: Record<string, number> = {};
             votesData.forEach(vote => {
@@ -135,6 +161,28 @@ const EventCreated: React.FC = () => {
                     console.error('Failed to finalize event:', error);
                     alert('Failed to finalize event. Please try again.');
                 });
+        }
+    };
+
+    const handleViewParticipant = (participantId: string, name: string) => {
+        setSelectedParticipant({ id: participantId, name });
+    };
+
+    const handleBlockParticipant = (participantId: string, name: string) => {
+        api.blockUser(id!, participantId)
+            .then(() => {
+                console.log(`User ${name} blocked successfully`);
+                // The WebSocket will handle updating the UI
+            })
+            .catch(error => {
+                console.error('Failed to block user:', error);
+                alert('Failed to block user. Please try again.');
+            });
+    };
+
+    const handleDownloadICS = () => {
+        if (finalizedTime) {
+            downloadICS(eventTitle, finalizedTime, timezone, organizerName);
         }
     };
 
@@ -215,9 +263,16 @@ const EventCreated: React.FC = () => {
                                         <p className="text-lg text-[var(--color-text-secondary)] mb-4">
                                             Scheduled for: <span className="text-[var(--color-accent)] font-bold">{finalizedTime}</span>
                                         </p>
-                                        <p className="text-sm text-[var(--color-text-muted)]">
+                                        <p className="text-sm text-[var(--color-text-muted)] mb-6">
                                             Participants can no longer vote
                                         </p>
+                                        <button
+                                            onClick={handleDownloadICS}
+                                            className="btn-primary px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
+                                        >
+                                            <Download size={20} />
+                                            Download Calendar Event (.ics)
+                                        </button>
                                     </div>
                                 ) : (
                                     <>
@@ -248,9 +303,28 @@ const EventCreated: React.FC = () => {
                         </div>
 
                         <div className="md:col-span-1">
-                            <ParticipantList participants={participants} organizerName={organizerName} />
+                            <ParticipantList
+                                participants={participants}
+                                organizerName={organizerName}
+                                isOrganizer={isOrganizer}
+                                onViewParticipant={handleViewParticipant}
+                                onBlockParticipant={handleBlockParticipant}
+                            />
                         </div>
                     </div>
+                )}
+
+                {/* Participant Modal */}
+                {selectedParticipant && (
+                    <ParticipantModal
+                        eventId={id!}
+                        participantId={selectedParticipant.id}
+                        participantName={selectedParticipant.name}
+                        dates={dates}
+                        startTime={startTime}
+                        endTime={endTime}
+                        onClose={() => setSelectedParticipant(null)}
+                    />
                 )}
             </div>
         </div>

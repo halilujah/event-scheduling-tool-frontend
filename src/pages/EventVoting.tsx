@@ -6,6 +6,8 @@ import { addDays, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
+import { downloadICS } from '../utils/icsGenerator';
+import { Download } from 'lucide-react';
 
 const EventVoting: React.FC = () => {
     const { eventId } = useParams();
@@ -17,6 +19,7 @@ const EventVoting: React.FC = () => {
     const [dates, setDates] = useState<Date[]>([]);
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("17:00");
+    const [timezone, setTimezone] = useState('UTC');
     const [votes, setVotes] = useState<Record<string, number>>({});
     const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
@@ -69,10 +72,35 @@ const EventVoting: React.FC = () => {
                 setFinalizedTime(data.finalizedTime);
             });
 
+            // Listen for user blocks
+            socket.on('user_blocked', (data) => {
+                console.log('User blocked:', data);
+                // Check if the current user was blocked
+                const storedParticipant = localStorage.getItem(`event_${eventId}_participant`);
+                if (storedParticipant) {
+                    try {
+                        const { participantId } = JSON.parse(storedParticipant);
+                        if (participantId === data.participantId) {
+                            // Current user was blocked
+                            alert('You have been blocked from this event by the organizer.');
+                            // Clear local storage
+                            localStorage.removeItem(`event_${eventId}_participant`);
+                            // Reload to show blocked state
+                            window.location.reload();
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse stored participant:', e);
+                    }
+                }
+                // Update participant list
+                setParticipants(prev => prev.filter(name => name.toLowerCase() !== data.participantName.toLowerCase()));
+            });
+
             return () => {
                 socket.off('participant_joined');
                 socket.off('votes_updated');
                 socket.off('event_finalized');
+                socket.off('user_blocked');
                 leaveEventRoom(eventId);
             };
         }
@@ -89,6 +117,7 @@ const EventVoting: React.FC = () => {
             setEventTitle(event.title);
             setStartTime(event.startTime);
             setEndTime(event.endTime);
+            setTimezone(event.timezone);
             setIsFinalized(event.isFinalized);
             setFinalizedTime(event.finalizedTime);
             setOrganizerName(event.organizerName);
@@ -195,9 +224,14 @@ const EventVoting: React.FC = () => {
                 }));
 
                 setUserName('');
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Failed to join event:', error);
-                alert('Failed to join event. Please try again.');
+                // Check if user is blocked (403 error)
+                if (error.message && error.message.includes('blocked')) {
+                    alert('You have been blocked from this event by the organizer.');
+                } else {
+                    alert('Failed to join event. Please try again.');
+                }
             }
         }
     };
@@ -214,6 +248,12 @@ const EventVoting: React.FC = () => {
                     console.error('Failed to finalize event:', error);
                     alert('Failed to finalize event. Please try again.');
                 });
+        }
+    };
+
+    const handleDownloadICS = () => {
+        if (finalizedTime) {
+            downloadICS(eventTitle, finalizedTime, timezone, organizerName);
         }
     };
 
@@ -262,9 +302,16 @@ const EventVoting: React.FC = () => {
                             <span className="text-2xl">🎉</span>
                             Event Finalized! Scheduled for: {finalizedTime}
                         </p>
-                        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                        <p className="text-sm text-[var(--color-text-muted)] mt-2 mb-3">
                             Voting is now closed
                         </p>
+                        <button
+                            onClick={handleDownloadICS}
+                            className="btn-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+                        >
+                            <Download size={16} />
+                            Download Calendar Event (.ics)
+                        </button>
                     </div>
                 ) : (
                     <p className="text-[var(--color-text-secondary)] mt-2">

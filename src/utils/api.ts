@@ -35,6 +35,7 @@ interface Event {
 interface Participant {
   participantId: string;
   name: string;
+  ipAddress?: string;
   joinedAt: string;
 }
 
@@ -134,6 +135,32 @@ export const api = {
 
     if (!response.ok) {
       throw new Error('Failed to finalize event');
+    }
+
+    return response.json();
+  },
+
+  async getParticipantVotes(eventId: string, participantId: string): Promise<{ timeSlots: string[] }> {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}/participants/${participantId}/votes`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch participant votes');
+    }
+
+    return response.json();
+  },
+
+  async blockUser(eventId: string, participantId: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}/block`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ participantId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to block user');
     }
 
     return response.json();
