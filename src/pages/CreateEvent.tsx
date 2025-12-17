@@ -6,11 +6,13 @@ import DateSelector from '../components/DateSelector';
 import DayOfWeekSelector from '../components/DayOfWeekSelector';
 import TimeRangeSlider from '../components/TimeRangeSlider';
 import { api } from '../utils/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 type Tab = 'dates' | 'days';
 
 const CreateEvent: React.FC = () => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [title, setTitle] = useState('');
     const [organizerName, setOrganizerName] = useState('');
     const [activeTab, setActiveTab] = useState<Tab>('dates');
@@ -39,7 +41,7 @@ const CreateEvent: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!organizerName.trim()) {
-            alert('Please enter your name as the event organizer');
+            alert(t.createEvent.validationOrganizerName);
             return;
         }
 
@@ -63,7 +65,7 @@ const CreateEvent: React.FC = () => {
             navigate(`/created/${response.eventId}`);
         } catch (error) {
             console.error('Failed to create event:', error);
-            alert('Failed to create event. Please try again.');
+            alert(t.errors.failedToLoad);
         }
     };
 
@@ -85,7 +87,7 @@ const CreateEvent: React.FC = () => {
             <div className="flex-col" style={{ gap: '2.5rem' }}>
                 {/* Organizer Name */}
                 <section>
-                    <h2 className="text-xl font-bold mb-1 text-white">What's your name?</h2>
+                    <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.organizerName}</h2>
                     <p className="text-sm text-[var(--color-text-muted)] mb-4">You're creating this event as the organizer</p>
                     <input
                         type="text"
@@ -93,13 +95,13 @@ const CreateEvent: React.FC = () => {
                         style={{ fontSize: '1.25rem', padding: '1rem' }}
                         value={organizerName}
                         onChange={(e) => setOrganizerName(e.target.value)}
-                        placeholder="Your Name (Required)"
+                        placeholder={t.createEvent.organizerNamePlaceholder}
                     />
                 </section>
 
                 {/* Event Name */}
                 <section>
-                    <h2 className="text-xl font-bold mb-1 text-white">Give your event a name!</h2>
+                    <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.eventTitle}</h2>
                     <p className="text-sm text-[var(--color-text-muted)] mb-4">Or leave blank to generate one</p>
                     <input
                         type="text"
@@ -107,13 +109,13 @@ const CreateEvent: React.FC = () => {
                         style={{ fontSize: '1.25rem', padding: '1rem' }}
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Event Name"
+                        placeholder={t.createEvent.eventTitlePlaceholder}
                     />
                 </section>
 
                 {/* Date Selection */}
                 <section>
-                    <h2 className="text-xl font-bold mb-1 text-white">What dates might work?</h2>
+                    <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.selectDates}</h2>
                     <p className="text-sm text-[var(--color-text-muted)] mb-4">Click to select</p>
 
                     {/* Tabs */}
@@ -122,13 +124,13 @@ const CreateEvent: React.FC = () => {
                             onClick={() => setActiveTab('dates')}
                             className={clsx("tab-btn", activeTab === 'dates' && "active")}
                         >
-                            Specific dates
+                            {t.createEvent.typeSpecific}
                         </div>
                         <div
                             onClick={() => setActiveTab('days')}
                             className={clsx("tab-btn", activeTab === 'days' && "active")}
                         >
-                            Days of the week
+                            {t.createEvent.typeDaysOfWeek}
                         </div>
                     </div>
 
@@ -146,7 +148,7 @@ const CreateEvent: React.FC = () => {
 
                 {/* Time Selection */}
                 <section>
-                    <h2 className="text-xl font-bold mb-1 text-white">What times might work?</h2>
+                    <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.timeRange}</h2>
                     <p className="text-sm text-[var(--color-text-muted)] mb-4">Select a time range</p>
                     <TimeRangeSlider
                         startTime={startTime}
@@ -157,7 +159,7 @@ const CreateEvent: React.FC = () => {
 
                 {/* Timezone */}
                 <section>
-                    <h2 className="text-xl font-bold mb-4 text-white">And the timezone</h2>
+                    <h2 className="text-xl font-bold mb-4 text-white">{t.createEvent.timezone}</h2>
                     <select
                         className="input-field"
                         value={timezone}
@@ -177,7 +179,7 @@ const CreateEvent: React.FC = () => {
                         className="btn-primary"
                         style={{ width: '100%', maxWidth: '300px' }}
                     >
-                        Create
+                        {t.createEvent.createButton}
                     </button>
                 </div>
             </div>

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import LanguageSelector from './LanguageSelector';
+import ThemeToggle from './ThemeToggle';
 
 const Layout: React.FC = () => {
     return (
@@ -13,6 +15,12 @@ const Layout: React.FC = () => {
                 className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full opacity-20 blur-[100px]"
                 style={{ background: 'radial-gradient(circle, var(--color-accent), transparent)' }}
             />
+
+            {/* Controls in top-right corner */}
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                <ThemeToggle />
+                <LanguageSelector />
+            </div>
 
             {/* Main Content */}
             <main className="container relative z-10 flex-grow py-8">

@@ -168,17 +168,20 @@ const EventVoting: React.FC = () => {
                         const updatedParticipants = dedupeNames([...participantsData.map(p => p.name), storedOrganizer!]);
                         setParticipants(updatedParticipants);
 
-                        // Store participant identity
+                        // Store participant identity for this event
                         localStorage.setItem(`event_${eventId}_participant`, JSON.stringify({
                             participantId: response.participantId,
                             name: storedOrganizer!
                         }));
+
+                        // Store name globally for future events
+                        localStorage.setItem('user_display_name', storedOrganizer!);
                     } catch (error) {
                         console.error('Failed to auto-join organizer:', error);
                     }
                 }
             } else {
-                // Check if user has already joined this event (from localStorage)
+                // Check if user has already joined this specific event
                 const storedParticipant = localStorage.getItem(`event_${eventId}_participant`);
                 if (storedParticipant) {
                     try {
@@ -194,11 +197,40 @@ const EventVoting: React.FC = () => {
                             setSelectedSlots(userVotes);
                             console.log(`Restored session for ${name}`);
                         } else {
-                            // Participant no longer exists, clear localStorage
+                            // Participant no longer exists (blocked or deleted), clear localStorage
                             localStorage.removeItem(`event_${eventId}_participant`);
                         }
                     } catch (e) {
                         console.error('Failed to parse stored participant:', e);
+                    }
+                } else {
+                    // User hasn't joined THIS event yet
+                    // Check if they have a saved name from another event
+                    const savedName = localStorage.getItem('user_display_name');
+                    if (savedName && savedName.trim()) {
+                        // Auto-join with saved name
+                        try {
+                            const response = await api.addParticipant(eventId!, savedName);
+                            setCurrentParticipantId(response.participantId);
+                            const updatedParticipants = dedupeNames([...participantsData.map(p => p.name), savedName]);
+                            setParticipants(updatedParticipants);
+
+                            // Store participant identity for this event
+                            localStorage.setItem(`event_${eventId}_participant`, JSON.stringify({
+                                participantId: response.participantId,
+                                name: savedName
+                            }));
+
+                            console.log(`Auto-joined as ${savedName}`);
+                        } catch (error: any) {
+                            console.error('Failed to auto-join with saved name:', error);
+                            // If auto-join fails (e.g., blocked), prefill the name for manual join
+                            if (error.message && error.message.includes('blocked')) {
+                                alert('You have been blocked from this event.');
+                            } else {
+                                setUserName(savedName); // Prefill for manual join
+                            }
+                        }
                     }
                 }
             }
@@ -217,11 +249,14 @@ const EventVoting: React.FC = () => {
                 setCurrentParticipantId(response.participantId);
                 setParticipants(prev => dedupeNames([...prev, userName]));
 
-                // Store user identity in localStorage
+                // Store user identity for this specific event
                 localStorage.setItem(`event_${eventId}_participant`, JSON.stringify({
                     participantId: response.participantId,
                     name: userName
                 }));
+
+                // Store name globally for auto-join in future events
+                localStorage.setItem('user_display_name', userName);
 
                 setUserName('');
             } catch (error: any) {
