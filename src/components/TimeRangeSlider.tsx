@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface TimeRangeSliderProps {
     startTime: string;
@@ -7,11 +8,12 @@ interface TimeRangeSliderProps {
 }
 
 const TimeRangeSlider: React.FC<TimeRangeSliderProps> = ({ startTime, endTime, onChange }) => {
+    const { t } = useLanguage();
     return (
         <div className="time-slider-container">
             <div className="time-inputs">
                 <div className="time-input-group">
-                    <span className="time-input-label">Start</span>
+                    <span className="time-input-label">{t.dateTime.start}</span>
                     <input
                         type="time"
                         value={startTime}
@@ -23,7 +25,7 @@ const TimeRangeSlider: React.FC<TimeRangeSliderProps> = ({ startTime, endTime, o
                 <div style={{ flex: 1, height: '2px', background: 'var(--color-border)', margin: '0 1rem' }}></div>
 
                 <div className="time-input-group">
-                    <span className="time-input-label">End</span>
+                    <span className="time-input-label">{t.dateTime.end}</span>
                     <input
                         type="time"
                         value={endTime}

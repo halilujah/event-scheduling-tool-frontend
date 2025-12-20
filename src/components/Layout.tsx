@@ -1,9 +1,17 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import LanguageSelector from './LanguageSelector';
-import ThemeToggle from './ThemeToggle';
+import UtilityControls from './UtilityControls';
+import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Layout: React.FC = () => {
+    const { theme, toggleTheme } = useTheme();
+    const { language, setLanguage } = useLanguage();
+
+    const handleLanguageToggle = () => {
+        setLanguage(language === 'en' ? 'tr' : 'en');
+    };
+
     return (
         <div className="min-h-screen flex flex-col relative overflow-hidden">
             {/* Background Elements */}
@@ -17,9 +25,13 @@ const Layout: React.FC = () => {
             />
 
             {/* Controls in top-right corner */}
-            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-                <ThemeToggle />
-                <LanguageSelector />
+            <div className="absolute top-4 right-4 z-20">
+                <UtilityControls
+                    theme={theme}
+                    language={language}
+                    onThemeToggle={toggleTheme}
+                    onLanguageToggle={handleLanguageToggle}
+                />
             </div>
 
             {/* Main Content */}

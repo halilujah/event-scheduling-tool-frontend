@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Share2, Copy, ArrowLeft, Download } from 'lucide-react';
 import { parseISO } from 'date-fns';
+import { useLanguage } from '../contexts/LanguageContext';
 import Heatmap from '../components/Heatmap';
 import ParticipantList from '../components/ParticipantList';
 import ParticipantModal from '../components/ParticipantModal';
@@ -19,6 +20,7 @@ interface Participant {
 
 const EventCreated: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { t } = useLanguage();
     const eventUrl = `${window.location.origin}/event/${id}`;
 
     const [loading, setLoading] = useState(true);
@@ -126,6 +128,25 @@ const EventCreated: React.FC = () => {
 
             if (event.type === 'dates' && event.selectedDates.length > 0) {
                 setDates(event.selectedDates.map(d => parseISO(d)));
+            } else if (event.type === 'days' && event.selectedDays.length > 0) {
+                // For "days of week" events, generate the next 4 weeks of selected days
+                const generatedDates: Date[] = [];
+                const today = new Date();
+                const weeksToShow = 4;
+
+                for (let week = 0; week < weeksToShow; week++) {
+                    event.selectedDays.forEach(dayOfWeek => {
+                        const date = new Date(today);
+                        const currentDay = date.getDay();
+                        const daysUntilTarget = (dayOfWeek - currentDay + 7) % 7;
+                        date.setDate(date.getDate() + daysUntilTarget + (week * 7));
+                        generatedDates.push(date);
+                    });
+                }
+
+                // Sort dates chronologically
+                generatedDates.sort((a, b) => a.getTime() - b.getTime());
+                setDates(generatedDates);
             }
 
             setParticipants(dedupeParticipants(participantsData));
@@ -150,7 +171,7 @@ const EventCreated: React.FC = () => {
     };
 
     const handleFinalize = (timeSlot: string) => {
-        if (confirm(`Finalize this event for ${timeSlot}? Participants will no longer be able to vote.`)) {
+        if (confirm(t.heatmap.finalizeConfirm.replace('{timeSlot}', timeSlot))) {
             api.finalizeEvent(id!, timeSlot)
                 .then(() => {
                     setIsFinalized(true);
@@ -159,7 +180,7 @@ const EventCreated: React.FC = () => {
                 })
                 .catch(error => {
                     console.error('Failed to finalize event:', error);
-                    alert('Failed to finalize event. Please try again.');
+                    alert(t.errors.failedToFinalize);
                 });
         }
     };
@@ -195,13 +216,13 @@ const EventCreated: React.FC = () => {
                         <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Share2 size={32} />
                         </div>
-                        <h1 className="text-3xl font-bold text-white">Event Created!</h1>
+                        <h1 className="text-3xl font-bold text-white">{t.eventCreated.title}</h1>
                         <p className="text-[var(--color-text-secondary)]">
-                            {eventTitle || 'Your event is ready'}. Share this QR code or link with your participants.
+                            {eventTitle ? t.eventCreated.subtitle.replace('{title}', eventTitle) : t.eventCreated.subtitleNoTitle}
                         </p>
                         {isOrganizer && organizerName && (
                             <p className="text-sm text-[var(--color-accent)] mt-2">
-                                👑 Organized by: {organizerName}
+                                {t.eventCreated.organizedBy.replace('{name}', organizerName)}
                             </p>
                         )}
                     </div>
@@ -212,7 +233,7 @@ const EventCreated: React.FC = () => {
 
                     <div className="space-y-4">
                         <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
-                            Share Link
+                            {t.eventCreated.shareLink}
                         </label>
                         <div className="flex gap-2">
                             <input
@@ -232,7 +253,7 @@ const EventCreated: React.FC = () => {
 
                     <div className="pt-8 border-t border-white/10">
                         <Link to="/" className="text-[var(--color-primary)] hover:text-[var(--color-accent)] transition-colors flex items-center justify-center gap-2">
-                            <ArrowLeft size={16} /> Create Another Event
+                            <ArrowLeft size={16} /> {t.eventCreated.createAnother}
                         </Link>
                     </div>
                 </div>
@@ -243,15 +264,15 @@ const EventCreated: React.FC = () => {
                         <div className="md:col-span-2">
                             <div className="card">
                                 <div className="flex-between mb-6">
-                                    <h2 className="text-xl font-bold text-white">Group Availability</h2>
+                                    <h2 className="text-xl font-bold text-white">{t.eventCreated.groupAvailability}</h2>
                                     {isOrganizer && !isFinalized && (
                                         <span className="text-sm text-[var(--color-accent)]">
-                                            👑 Organizer - Click a time slot to finalize
+                                            {t.eventCreated.organizerHint}
                                         </span>
                                     )}
                                     {isFinalized && finalizedTime && (
                                         <span className="text-sm text-green-400">
-                                            ✓ Finalized: {finalizedTime}
+                                            {t.eventCreated.finalizedLabel.replace('{time}', finalizedTime)}
                                         </span>
                                     )}
                                 </div>
@@ -259,19 +280,19 @@ const EventCreated: React.FC = () => {
                                 {isFinalized && finalizedTime ? (
                                     <div className="text-center py-12">
                                         <div className="text-6xl mb-4">🎉</div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">Event Finalized!</h3>
+                                        <h3 className="text-2xl font-bold text-white mb-2">{t.eventCreated.finalizedTitle}</h3>
                                         <p className="text-lg text-[var(--color-text-secondary)] mb-4">
-                                            Scheduled for: <span className="text-[var(--color-accent)] font-bold">{finalizedTime}</span>
+                                            {t.eventCreated.scheduledFor} <span className="text-[var(--color-accent)] font-bold">{finalizedTime}</span>
                                         </p>
                                         <p className="text-sm text-[var(--color-text-muted)] mb-6">
-                                            Participants can no longer vote
+                                            {t.eventCreated.votingClosed}
                                         </p>
                                         <button
                                             onClick={handleDownloadICS}
                                             className="btn-primary px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
                                         >
                                             <Download size={20} />
-                                            Download Calendar Event (.ics)
+                                            {t.eventCreated.downloadICS}
                                         </button>
                                     </div>
                                 ) : (
@@ -294,8 +315,8 @@ const EventCreated: React.FC = () => {
                                         />
                                         <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
                                             {isOrganizer && !isFinalized
-                                                ? '💡 Click on a time slot to finalize the event'
-                                                : '🟢 Live updates enabled - changes appear instantly'}
+                                                ? t.eventCreated.clickToFinalize
+                                                : t.eventCreated.liveUpdates}
                                         </p>
                                     </>
                                 )}

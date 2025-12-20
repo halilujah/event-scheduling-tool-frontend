@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { format, addMinutes } from 'date-fns';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface HeatmapProps {
     dates: Date[];
@@ -25,6 +26,7 @@ const Heatmap: React.FC<HeatmapProps> = ({
     isFinalized = false,
     isOrganizerInAggregateMode = false
 }) => {
+    const { t } = useLanguage();
     const [internalSelectedSlots, setInternalSelectedSlots] = useState<string[]>([]);
     const selectedSlots = externalSelectedSlots !== undefined ? externalSelectedSlots : internalSelectedSlots;
 
@@ -156,6 +158,14 @@ const Heatmap: React.FC<HeatmapProps> = ({
         return 0.2 + (count / max) * 0.8;
     };
 
+    const getDayAbbrWithDate = (date: Date) => {
+        const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+        const dayAbbr = t.dateTime.daysShort[dayKeys[dayIndex]];
+        const dayNum = date.getDate();
+        return `${dayAbbr} ${dayNum}`;
+    };
+
     return (
         <div className="heatmap-container">
             <div className="heatmap-grid" style={{
@@ -165,7 +175,7 @@ const Heatmap: React.FC<HeatmapProps> = ({
                 <div className="p-2"></div>
                 {dates.map((date, i) => (
                     <div key={i} className="heatmap-header-cell">
-                        {format(date, 'EEE d')}
+                        {getDayAbbrWithDate(date)}
                     </div>
                 ))}
 

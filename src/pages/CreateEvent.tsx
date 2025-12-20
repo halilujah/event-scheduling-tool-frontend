@@ -72,7 +72,7 @@ const CreateEvent: React.FC = () => {
     return (
         <div className="container" style={{ paddingBottom: '5rem' }}>
             {/* Header Section */}
-            <div className="mb-8" style={{ marginTop: '2rem' }}>
+            {/* <div className="mb-8" style={{ marginTop: '2rem' }}>
                 <h2 className="text-xl font-bold mb-4 text-[var(--color-text-secondary)]">Recently visited</h2>
                 <div className="flex-col">
                     {['meeting2', 'meeting1', 'test'].map((item, i) => (
@@ -82,13 +82,13 @@ const CreateEvent: React.FC = () => {
                         </div>
                     ))}
                 </div>
-            </div>
+            </div> */}
 
             <div className="flex-col" style={{ gap: '2.5rem' }}>
                 {/* Organizer Name */}
                 <section>
                     <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.organizerName}</h2>
-                    <p className="text-sm text-[var(--color-text-muted)] mb-4">You're creating this event as the organizer</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-4">{t.createEvent.organizerSubtitle}</p>
                     <input
                         type="text"
                         className="input-field"
@@ -102,7 +102,7 @@ const CreateEvent: React.FC = () => {
                 {/* Event Name */}
                 <section>
                     <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.eventTitle}</h2>
-                    <p className="text-sm text-[var(--color-text-muted)] mb-4">Or leave blank to generate one</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-4">{t.createEvent.eventTitleSubtitle}</p>
                     <input
                         type="text"
                         className="input-field"
@@ -116,7 +116,7 @@ const CreateEvent: React.FC = () => {
                 {/* Date Selection */}
                 <section>
                     <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.selectDates}</h2>
-                    <p className="text-sm text-[var(--color-text-muted)] mb-4">Click to select</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-4">{t.createEvent.selectDatesSubtitle}</p>
 
                     {/* Tabs */}
                     <div className="tabs">
@@ -149,7 +149,7 @@ const CreateEvent: React.FC = () => {
                 {/* Time Selection */}
                 <section>
                     <h2 className="text-xl font-bold mb-1 text-white">{t.createEvent.timeRange}</h2>
-                    <p className="text-sm text-[var(--color-text-muted)] mb-4">Select a time range</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-4">{t.createEvent.timeRangeSubtitle}</p>
                     <TimeRangeSlider
                         startTime={startTime}
                         endTime={endTime}

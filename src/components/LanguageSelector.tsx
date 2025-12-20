@@ -1,5 +1,4 @@
 import React from 'react';
-import { Globe } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { type Language, languageNames } from '../i18n';
 
@@ -16,11 +15,10 @@ const LanguageSelector: React.FC = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-white hover:bg-[var(--color-bg-tertiary)] transition-colors"
+        className="flex items-center justify-center h-9 px-3 rounded-md hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 transition-colors duration-150"
         title="Change Language"
       >
-        <Globe size={18} />
-        <span className="text-sm">{languageNames[language]}</span>
+        <span className="text-sm font-medium tracking-wide">{language.toUpperCase()}</span>
       </button>
 
       {isOpen && (
@@ -29,15 +27,15 @@ const LanguageSelector: React.FC = () => {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 top-12 bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg shadow-lg z-20 min-w-[140px]">
+          <div className="absolute right-0 top-10 bg-white dark:bg-[#1a1a2e] border border-gray-200 dark:border-gray-800 rounded-md shadow-lg z-20 w-32 overflow-hidden">
             {(Object.keys(languageNames) as Language[]).map((lang) => (
               <button
                 key={lang}
                 onClick={() => handleLanguageChange(lang)}
-                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                className={`w-full text-left px-3 py-2 text-sm transition-colors duration-150 ${
                   language === lang
-                    ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]'
-                    : 'text-white hover:bg-white/5'
+                    ? 'bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'
                 }`}
               >
                 {languageNames[lang]}

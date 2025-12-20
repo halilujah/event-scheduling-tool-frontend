@@ -8,9 +8,11 @@ import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
 import { downloadICS } from '../utils/icsGenerator';
 import { Download } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const EventVoting: React.FC = () => {
     const { eventId } = useParams();
+    const { t } = useLanguage();
     const [userName, setUserName] = useState('');
     const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
     const [participants, setParticipants] = useState<string[]>([]);
@@ -124,6 +126,25 @@ const EventVoting: React.FC = () => {
 
             if (event.type === 'dates' && event.selectedDates.length > 0) {
                 setDates(event.selectedDates.map(d => parseISO(d)));
+            } else if (event.type === 'days' && event.selectedDays.length > 0) {
+                // For "days of week" events, generate the next 4 weeks of selected days
+                const generatedDates: Date[] = [];
+                const today = new Date();
+                const weeksToShow = 4;
+
+                for (let week = 0; week < weeksToShow; week++) {
+                    event.selectedDays.forEach(dayOfWeek => {
+                        const date = new Date(today);
+                        const currentDay = date.getDay();
+                        const daysUntilTarget = (dayOfWeek - currentDay + 7) % 7;
+                        date.setDate(date.getDate() + daysUntilTarget + (week * 7));
+                        generatedDates.push(date);
+                    });
+                }
+
+                // Sort dates chronologically
+                generatedDates.sort((a, b) => a.getTime() - b.getTime());
+                setDates(generatedDates);
             } else {
                 setDates([new Date(), addDays(new Date(), 1), addDays(new Date(), 2)]);
             }
@@ -272,7 +293,7 @@ const EventVoting: React.FC = () => {
     };
 
     const handleFinalize = (timeSlot: string) => {
-        if (confirm(`Finalize this event for ${timeSlot}? Participants will no longer be able to vote.`)) {
+        if (confirm(t.heatmap.finalizeConfirm.replace('{timeSlot}', timeSlot))) {
             api.finalizeEvent(eventId!, timeSlot)
                 .then(() => {
                     setIsFinalized(true);
@@ -281,7 +302,7 @@ const EventVoting: React.FC = () => {
                 })
                 .catch(error => {
                     console.error('Failed to finalize event:', error);
-                    alert('Failed to finalize event. Please try again.');
+                    alert(t.errors.failedToFinalize);
                 });
         }
     };
@@ -320,7 +341,7 @@ const EventVoting: React.FC = () => {
         return (
             <div className="container pb-20 pt-8">
                 <div className="flex-center">
-                    <p className="text-white">Loading event...</p>
+                    <p className="text-white">{t.eventVoting.loading}</p>
                 </div>
             </div>
         );
@@ -330,27 +351,27 @@ const EventVoting: React.FC = () => {
         <div className="container pb-20 pt-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">{eventTitle}</h1>
-                <p className="text-[var(--color-text-muted)]">Event ID: {eventId}</p>
+                <p className="text-[var(--color-text-muted)]">{t.eventVoting.eventId} {eventId}</p>
                 {isFinalized && finalizedTime ? (
                     <div className="mt-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
                         <p className="text-green-400 font-bold flex items-center gap-2">
                             <span className="text-2xl">🎉</span>
-                            Event Finalized! Scheduled for: {finalizedTime}
+                            {t.eventVoting.finalizedBanner} {finalizedTime}
                         </p>
                         <p className="text-sm text-[var(--color-text-muted)] mt-2 mb-3">
-                            Voting is now closed
+                            {t.eventVoting.votingClosed}
                         </p>
                         <button
                             onClick={handleDownloadICS}
                             className="btn-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
                         >
                             <Download size={16} />
-                            Download Calendar Event (.ics)
+                            {t.eventVoting.downloadICS}
                         </button>
                     </div>
                 ) : (
                     <p className="text-[var(--color-text-secondary)] mt-2">
-                        Please select all times you are available.
+                        {t.eventVoting.selectSlots}
                     </p>
                 )}
             </div>
@@ -359,7 +380,7 @@ const EventVoting: React.FC = () => {
                 <div className="md:col-span-2">
                     <div className="card mb-8" style={{ minWidth: 0 }}>
                         <div className="flex-between mb-6">
-                            <h2 className="text-xl font-bold text-white">Availability</h2>
+                            <h2 className="text-xl font-bold text-white">{t.eventVoting.availability}</h2>
 
                             {/* View Mode Toggle */}
                             <div className="tabs mb-0" style={{ width: 'auto', minWidth: '300px' }}>
@@ -367,13 +388,13 @@ const EventVoting: React.FC = () => {
                                     onClick={() => setViewMode('personal')}
                                     className={clsx("tab-btn", viewMode === 'personal' && "active")}
                                 >
-                                    My Vote
+                                    {t.eventVoting.myVote}
                                 </div>
                                 <div
                                     onClick={() => setViewMode('aggregate')}
                                     className={clsx("tab-btn", viewMode === 'aggregate' && "active")}
                                 >
-                                    Group View {isOrganizer && !isFinalized && '(Click to Finalize)'}
+                                    {t.eventVoting.groupView} {isOrganizer && !isFinalized && `(${t.eventVoting.groupViewFinalize})`}
                                 </div>
                             </div>
                         </div>
@@ -397,17 +418,17 @@ const EventVoting: React.FC = () => {
 
                         {viewMode === 'personal' && currentParticipantId && !isFinalized && (
                             <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
-                                ✓ Your changes are saved automatically
+                                {t.eventVoting.autoSaved}
                             </p>
                         )}
                         {isOrganizer && !isFinalized && viewMode === 'aggregate' && (
                             <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
-                                💡 Click on a time slot to finalize the event
+                                {t.eventVoting.clickToFinalize}
                             </p>
                         )}
                         {isFinalized && (
                             <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
-                                🔒 Voting is locked - Event has been finalized
+                                {t.eventVoting.votingLocked}
                             </p>
                         )}
                     </div>
@@ -416,17 +437,17 @@ const EventVoting: React.FC = () => {
                 <div className="md:col-span-1">
                     <div className="card mb-8">
                         <h3 className="text-lg font-bold mb-4 text-white">
-                            {currentParticipantId ? 'Your Status' : 'Join Event'}
+                            {currentParticipantId ? t.eventVoting.yourStatus : t.eventVoting.joinEvent}
                         </h3>
                         {currentParticipantId ? (
                             <div className="space-y-2">
                                 <p className="text-[var(--color-text-secondary)] text-sm">
-                                    You're participating as:
+                                    {t.eventVoting.participatingAs}
                                 </p>
                                 <p className="text-white font-medium">
                                     {isOrganizer ? (
                                         <>
-                                            {organizerName} <span className="text-[var(--color-accent)]">(Organizer)</span>
+                                            {organizerName} <span className="text-[var(--color-accent)]">{t.eventVoting.organizer}</span>
                                         </>
                                     ) : (
                                         (() => {
@@ -439,7 +460,7 @@ const EventVoting: React.FC = () => {
                                     )}
                                 </p>
                                 <p className="text-[var(--color-text-muted)] text-xs">
-                                    ✓ Your identity is saved for this event
+                                    {t.eventVoting.identitySaved}
                                 </p>
                             </div>
                         ) : (
@@ -447,7 +468,7 @@ const EventVoting: React.FC = () => {
                                 <input
                                     type="text"
                                     className="input-field flex-1"
-                                    placeholder="Your Name"
+                                    placeholder={t.eventVoting.yourNamePlaceholder}
                                     value={userName}
                                     onChange={(e) => setUserName(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
@@ -456,7 +477,7 @@ const EventVoting: React.FC = () => {
                                     onClick={handleJoin}
                                     className="btn-primary"
                                 >
-                                    Join
+                                    {t.eventVoting.joinButton}
                                 </button>
                             </div>
                         )}

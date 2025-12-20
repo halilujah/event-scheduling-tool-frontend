@@ -46,7 +46,8 @@
 /* Light Theme */
 :root[data-theme="light"] {
   /* Color Palette - Light Mode */
-  --color-bg-primary: #f8f9fa;
+  /* --color-bg-primary: #f8f9fa; */
+  --color-bg-primary: #F9F8F6;
   --color-bg-secondary: #ffffff;
   --color-bg-tertiary: #e9ecef;
 
@@ -123,7 +124,7 @@ body {
 /* Components */
 .btn-primary {
   background: var(--color-accent);
-  color: white;
+  color: #ffffff;
   padding: 0.75rem 2rem;
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -145,7 +146,7 @@ body {
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  color: white;
+  color: var(--color-text-primary);
   font-size: 1rem;
   transition: var(--transition-fast);
 }
@@ -203,7 +204,7 @@ body {
 
 .date-cell.selected {
   background: var(--color-accent);
-  color: white;
+  color: #ffffff;
   box-shadow: var(--shadow-glow);
 }
 
@@ -228,7 +229,7 @@ body {
 
 .day-btn.selected {
   background: var(--color-accent);
-  color: white;
+  color: #ffffff;
   box-shadow: var(--shadow-glow);
 }
 
@@ -315,7 +316,7 @@ body {
   text-align: center;
   font-weight: bold;
   padding: 0.5rem;
-  color: white;
+  color: var(--color-text-primary);
 }
 
 .heatmap-time-label {
@@ -400,7 +401,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #ffffff;
   font-weight: bold;
   font-size: 0.875rem;
 }
@@ -417,7 +418,7 @@ body {
 .text-lg { font-size: 1.125rem; }
 .text-3xl { font-size: 1.875rem; }
 .font-bold { font-weight: 700; }
-.text-white { color: white; }
+.text-white { color: var(--color-text-primary); }
 .mb-2 { margin-bottom: 0.5rem; }
 .mt-2 { margin-top: 0.5rem; }
 .gap-8 { gap: 2rem; }
@@ -464,3 +465,46 @@ body {
 .space-y-4 > * + * { margin-top: 1rem; }
 .space-y-8 > * + * { margin-top: 2rem; }
 .p-8 { padding: 2rem; }
+
+/* Utility Buttons - Modern SaaS Design */
+.utility-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* Light theme styles */
+:root[data-theme="light"] .utility-button {
+  background-color: transparent;
+  color: #52525b; /* neutral-600 */
+}
+
+:root[data-theme="light"] .utility-button:hover {
+  background-color: #f4f4f5; /* neutral-100 */
+}
+
+/* Dark theme styles */
+:root[data-theme="dark"] .utility-button {
+  background-color: transparent;
+  color: #a1a1aa; /* neutral-400 */
+}
+
+:root[data-theme="dark"] .utility-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Language button specific styles */
+.utility-button-lang {
+  width: auto;
+  padding: 0 12px;
+}

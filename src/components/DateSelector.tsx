@@ -2,6 +2,7 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface DateSelectorProps {
     selectedDates: Date[];
@@ -9,6 +10,7 @@ interface DateSelectorProps {
 }
 
 const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) => {
+    const { t } = useLanguage();
     const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
     const daysInMonth = eachDayOfInterval({
@@ -24,6 +26,24 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) 
         return selectedDates.some(d => isSameDay(d, date));
     };
 
+    const getMonthName = (date: Date) => {
+        const monthIndex = date.getMonth();
+        const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'] as const;
+        return t.dateTime.months[monthKeys[monthIndex]];
+    };
+
+    const getDayAbbreviations = () => {
+        return [
+            t.dateTime.daysShort.sun,
+            t.dateTime.daysShort.mon,
+            t.dateTime.daysShort.tue,
+            t.dateTime.daysShort.wed,
+            t.dateTime.daysShort.thu,
+            t.dateTime.daysShort.fri,
+            t.dateTime.daysShort.sat,
+        ];
+    };
+
     return (
         <div className="calendar-container">
             <div className="calendar-header">
@@ -34,7 +54,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) 
                     <ChevronLeft size={24} />
                 </button>
                 <h3 className="text-lg font-bold text-white">
-                    {format(currentMonth, 'MMMM yyyy')}
+                    {getMonthName(currentMonth)} {format(currentMonth, 'yyyy')}
                 </h3>
                 <button
                     onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
@@ -45,8 +65,8 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) 
             </div>
 
             <div className="calendar-grid mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="day-label">
+                {getDayAbbreviations().map((day, index) => (
+                    <div key={index} className="day-label">
                         {day}
                     </div>
                 ))}
