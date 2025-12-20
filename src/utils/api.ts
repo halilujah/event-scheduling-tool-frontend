@@ -1,5 +1,5 @@
-// Use Render backend by default; override with VITE_API_URL for local/dev.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://event-scheduling-tool-backend-s750.onrender.com';
+// Use Google Cloud Run backend by default; override with VITE_API_URL for local/dev.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://cloktopus-backend-730946715554.europe-west1.run.app';
 
 interface CreateEventPayload {
   title: string;

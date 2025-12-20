@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
-// Use Render backend by default; override with VITE_API_URL for local/dev.
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://event-scheduling-tool-backend-s750.onrender.com';
+// Use Google Cloud Run backend by default; override with VITE_API_URL for local/dev.
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://cloktopus-backend-730946715554.europe-west1.run.app';
 
 let socket: Socket | null = null;
 
