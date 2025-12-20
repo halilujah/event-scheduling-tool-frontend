@@ -7,7 +7,7 @@ export const en = {
   // Create Event Page
   createEvent: {
     title: "Create New Event",
-    organizerName: "Your Name",
+    organizerName: "Your Name (test)",
     organizerNamePlaceholder: "Enter your name",
     organizerSubtitle: "You're creating this event as the organizer",
     eventTitle: "Event Title",
