@@ -5,6 +5,7 @@ interface TimeRangeSliderProps {
     startTime: string;
     endTime: string;
     onChange: (start: string, end: string) => void;
+    selectedDates?: Date[];
 }
 
 const TimeRangeSlider: React.FC<TimeRangeSliderProps> = ({ startTime, endTime, onChange }) => {

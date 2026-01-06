@@ -13,6 +13,8 @@ interface HeatmapProps {
     onSlotsChange?: (slots: string[]) => void;
     isFinalized?: boolean;
     isOrganizerInAggregateMode?: boolean;
+    organizerTimezone?: string;
+    viewerTimezone?: string;
 }
 
 const Heatmap: React.FC<HeatmapProps> = ({
@@ -24,7 +26,9 @@ const Heatmap: React.FC<HeatmapProps> = ({
     selectedSlots: externalSelectedSlots,
     onSlotsChange,
     isFinalized = false,
-    isOrganizerInAggregateMode = false
+    isOrganizerInAggregateMode = false,
+    organizerTimezone,
+    viewerTimezone
 }) => {
     const { t } = useLanguage();
     const [internalSelectedSlots, setInternalSelectedSlots] = useState<string[]>([]);
@@ -158,26 +162,62 @@ const Heatmap: React.FC<HeatmapProps> = ({
         return 0.2 + (count / max) * 0.8;
     };
 
-    const getDayAbbrWithDate = (date: Date) => {
+    const getDayAbbrWithDate = (date: Date, index: number, allDates: Date[]) => {
         const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
         const dayAbbr = t.dateTime.daysShort[dayKeys[dayIndex]];
         const dayNum = date.getDate();
-        return `${dayAbbr} ${dayNum}`;
+
+        // Get month abbreviation
+        const monthKeys = [
+            'january', 'february', 'march', 'april', 'may', 'june',
+            'july', 'august', 'september', 'october', 'november', 'december'
+        ] as const;
+        const monthAbbr = t.dateTime.months[monthKeys[date.getMonth()]].substring(0, 3);
+
+        // Show year only when it changes (compare with previous date)
+        const year = date.getFullYear();
+        const prevYear = index > 0 ? allDates[index - 1].getFullYear() : null;
+        const showYear = prevYear === null || prevYear !== year;
+
+        // Line 1: Day + Date (e.g., "Mon 15")
+        const line1 = `${dayAbbr} ${dayNum}`;
+
+        // Line 2: Month + Year (e.g., "Jan 2026" or just "Jan")
+        const line2 = showYear ? `${monthAbbr} ${year}` : monthAbbr;
+
+        return { line1, line2 };
     };
 
     return (
         <div className="heatmap-container">
+            {viewerTimezone && organizerTimezone && (
+                <div className="text-xs text-[var(--color-text-muted)] mb-3 flex items-center gap-2">
+                    <span>🌍</span>
+                    <span>
+                        Times displayed in: <strong className="text-[var(--color-text-secondary)]">{viewerTimezone}</strong>
+                    </span>
+                    {viewerTimezone !== organizerTimezone && (
+                        <span className="ml-2">
+                            (Organizer: {organizerTimezone})
+                        </span>
+                    )}
+                </div>
+            )}
             <div className="heatmap-grid" style={{
                 gridTemplateColumns: `auto repeat(${dates.length}, minmax(80px, 1fr))`,
             }}>
                 {/* Header Row (Dates) */}
                 <div className="p-2"></div>
-                {dates.map((date, i) => (
-                    <div key={i} className="heatmap-header-cell">
-                        {getDayAbbrWithDate(date)}
-                    </div>
-                ))}
+                {dates.map((date, i) => {
+                    const { line1, line2 } = getDayAbbrWithDate(date, i, dates);
+                    return (
+                        <div key={i} className="heatmap-header-cell">
+                            <div className="heatmap-header-line1">{line1}</div>
+                            <div className="heatmap-header-line2">{line2}</div>
+                        </div>
+                    );
+                })}
 
                 {/* Time Rows */}
                 {slots.map((time) => (

@@ -37,6 +37,10 @@ export const en = {
     validationDates: "Please select at least one date",
     validationDays: "Please select at least one day",
     validationTimeRange: "End time must be after start time",
+    validationPastDates: "Cannot select dates in the past",
+    validationPastTime: "Selected start time is in the past for today's date",
+    validationNoSelection: "Please select at least one date or day",
+    pastDateTooltip: "Past dates cannot be selected",
     recentlyVisited: "Recently visited",
     createdAgo: "Created {time} ago"
   },

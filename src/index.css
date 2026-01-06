@@ -208,6 +208,18 @@ body {
   box-shadow: var(--shadow-glow);
 }
 
+.date-cell.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+.date-cell.disabled:hover {
+  border-color: transparent;
+  transform: none;
+}
+
 /* Day Selector */
 .day-selector {
   display: flex;
@@ -317,6 +329,34 @@ body {
   font-weight: bold;
   padding: 0.5rem;
   color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heatmap-header-line1 {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.heatmap-header-line2 {
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  line-height: 1.2;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 640px) {
+  .heatmap-header-line1 {
+    font-size: 0.8125rem; /* 13px */
+  }
+
+  .heatmap-header-line2 {
+    font-size: 0.6875rem; /* 11px */
+  }
 }
 
 .heatmap-time-label {

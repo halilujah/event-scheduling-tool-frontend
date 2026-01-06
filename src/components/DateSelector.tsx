@@ -1,5 +1,5 @@
 import React from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay, isBefore, startOfDay } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -24,6 +24,10 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) 
 
     const isSelected = (date: Date) => {
         return selectedDates.some(d => isSameDay(d, date));
+    };
+
+    const isPastDate = (date: Date) => {
+        return isBefore(startOfDay(date), startOfDay(new Date()));
     };
 
     const getMonthName = (date: Date) => {
@@ -78,11 +82,14 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDates, onSelect }) 
                 ))}
                 {daysInMonth.map(date => {
                     const selected = isSelected(date);
+                    const isPast = isPastDate(date);
                     return (
                         <button
                             key={date.toISOString()}
-                            onClick={() => onSelect(date)}
-                            className={clsx("date-cell", selected && "selected")}
+                            onClick={() => !isPast && onSelect(date)}
+                            className={clsx("date-cell", selected && "selected", isPast && "disabled")}
+                            disabled={isPast}
+                            title={isPast ? t.createEvent.pastDateTooltip : undefined}
                         >
                             {format(date, 'd')}
                         </button>

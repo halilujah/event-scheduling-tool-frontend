@@ -10,6 +10,7 @@ import ParticipantModal from '../components/ParticipantModal';
 import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
 import { downloadICS } from '../utils/icsGenerator';
+import { addRecentEvent } from '../utils/recentEvents';
 
 interface Participant {
     participantId: string;
@@ -119,6 +120,9 @@ const EventCreated: React.FC = () => {
             setOrganizerName(event.organizerName);
             setIsFinalized(event.isFinalized);
             setFinalizedTime(event.finalizedTime);
+
+            // Track recent event visit (always organizer on this page)
+            addRecentEvent(event.eventId || id!, event.title, 'organizer');
 
             // Check if current user is the organizer
             const storedOrganizer = localStorage.getItem(`event_${id}_organizer`);

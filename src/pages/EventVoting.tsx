@@ -9,6 +9,8 @@ import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
 import { downloadICS } from '../utils/icsGenerator';
 import { Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { detectUserTimezone, convertTimeSlot, convertTime } from '../utils/timezoneUtils';
+import { addRecentEvent } from '../utils/recentEvents';
 
 const EventVoting: React.FC = () => {
     const { eventId } = useParams();
@@ -21,7 +23,8 @@ const EventVoting: React.FC = () => {
     const [dates, setDates] = useState<Date[]>([]);
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("17:00");
-    const [timezone, setTimezone] = useState('UTC');
+    const [timezone, setTimezone] = useState('UTC'); // Organizer's timezone
+    const [userTimezone, setUserTimezone] = useState('UTC'); // Viewer's timezone
     const [votes, setVotes] = useState<Record<string, number>>({});
     const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
@@ -29,6 +32,12 @@ const EventVoting: React.FC = () => {
     const [finalizedTime, setFinalizedTime] = useState<string | null>(null);
     const [isOrganizer, setIsOrganizer] = useState(false);
     const [organizerName, setOrganizerName] = useState('');
+
+    // Detect user's timezone on mount
+    useEffect(() => {
+        const detected = detectUserTimezone();
+        setUserTimezone(detected);
+    }, []);
 
     const dedupeNames = (names: string[]) => {
         const seen = new Set<string>();
@@ -160,6 +169,10 @@ const EventVoting: React.FC = () => {
 
             // Check if current user is the organizer
             const storedOrganizer = localStorage.getItem(`event_${eventId}_organizer`);
+
+            // Track recent event visit
+            const role = storedOrganizer === event.organizerName ? 'organizer' : 'participant';
+            addRecentEvent(event.eventId || eventId!, event.title, role);
 
             if (storedOrganizer === event.organizerName) {
                 setIsOrganizer(true);
@@ -333,9 +346,44 @@ const EventVoting: React.FC = () => {
         return () => clearTimeout(timeoutId);
     }, [selectedSlots, currentParticipantId, eventId]);
 
-    const heatmapSelectedSlots = finalizedTime
-        ? [finalizedTime]
-        : (isOrganizer && viewMode === 'aggregate' ? [] : selectedSlots);
+    // Convert time slots from organizer timezone to user timezone for display
+    const convertedVotes = React.useMemo(() => {
+        if (timezone === userTimezone) return votes;
+
+        const converted: Record<string, number> = {};
+        Object.entries(votes).forEach(([slot, count]) => {
+            const convertedSlot = convertTimeSlot(slot, timezone, userTimezone);
+            converted[convertedSlot] = count;
+        });
+        return converted;
+    }, [votes, timezone, userTimezone]);
+
+    const convertedSelectedSlots = React.useMemo(() => {
+        if (timezone === userTimezone) return selectedSlots;
+
+        return selectedSlots.map(slot => convertTimeSlot(slot, timezone, userTimezone));
+    }, [selectedSlots, timezone, userTimezone]);
+
+    const convertedFinalizedTime = React.useMemo(() => {
+        if (!finalizedTime || timezone === userTimezone) return finalizedTime;
+
+        return convertTimeSlot(finalizedTime, timezone, userTimezone);
+    }, [finalizedTime, timezone, userTimezone]);
+
+    // Convert time range from organizer timezone to user timezone
+    const convertedStartTime = React.useMemo(() => {
+        if (timezone === userTimezone) return startTime;
+        return convertTime(startTime, timezone, userTimezone);
+    }, [startTime, timezone, userTimezone]);
+
+    const convertedEndTime = React.useMemo(() => {
+        if (timezone === userTimezone) return endTime;
+        return convertTime(endTime, timezone, userTimezone);
+    }, [endTime, timezone, userTimezone]);
+
+    const heatmapSelectedSlots = convertedFinalizedTime
+        ? [convertedFinalizedTime]
+        : (isOrganizer && viewMode === 'aggregate' ? [] : convertedSelectedSlots);
 
     if (loading) {
         return (
@@ -352,11 +400,26 @@ const EventVoting: React.FC = () => {
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white mb-2">{eventTitle}</h1>
                 <p className="text-[var(--color-text-muted)]">{t.eventVoting.eventId} {eventId}</p>
-                {isFinalized && finalizedTime ? (
+                <div className="text-sm text-[var(--color-text-muted)] mt-2">
+                    <span className="inline-flex items-center gap-1">
+                        🌍 Times shown in:
+                        <strong className="text-[var(--color-text-secondary)]">
+                            {userTimezone === timezone
+                                ? `${timezone} (Organizer timezone)`
+                                : `${userTimezone} (Your timezone)`}
+                        </strong>
+                    </span>
+                    {userTimezone !== timezone && (
+                        <span className="ml-2 text-xs">
+                            (Organizer timezone: {timezone})
+                        </span>
+                    )}
+                </div>
+                {isFinalized && convertedFinalizedTime ? (
                     <div className="mt-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
                         <p className="text-green-400 font-bold flex items-center gap-2">
                             <span className="text-2xl">🎉</span>
-                            {t.eventVoting.finalizedBanner} {finalizedTime}
+                            {t.eventVoting.finalizedBanner} {convertedFinalizedTime}
                         </p>
                         <p className="text-sm text-[var(--color-text-muted)] mt-2 mb-3">
                             {t.eventVoting.votingClosed}
@@ -401,19 +464,27 @@ const EventVoting: React.FC = () => {
 
                         <Heatmap
                             dates={dates}
-                            startTime={startTime}
-                            endTime={endTime}
-                            votes={votes}
+                            startTime={convertedStartTime}
+                            endTime={convertedEndTime}
+                            votes={convertedVotes}
                             viewMode={isFinalized ? 'aggregate' : viewMode}
                             selectedSlots={heatmapSelectedSlots}
                             onSlotsChange={isOrganizer && !isFinalized && viewMode === 'aggregate' ? (slots) => {
                                 const slotToFinalize = slots[slots.length - 1];
                                 if (slotToFinalize) {
-                                    handleFinalize(slotToFinalize);
+                                    // Convert back to organizer timezone before finalizing
+                                    const organizerSlot = convertTimeSlot(slotToFinalize, userTimezone, timezone);
+                                    handleFinalize(organizerSlot);
                                 }
-                            } : (isFinalized ? () => { } : setSelectedSlots)}
+                            } : (isFinalized ? () => { } : (slots) => {
+                                // Convert back to organizer timezone before saving
+                                const organizerSlots = slots.map(slot => convertTimeSlot(slot, userTimezone, timezone));
+                                setSelectedSlots(organizerSlots);
+                            })}
                             isFinalized={isFinalized}
                             isOrganizerInAggregateMode={isOrganizer && viewMode === 'aggregate' && !isFinalized}
+                            organizerTimezone={timezone}
+                            viewerTimezone={userTimezone}
                         />
 
                         {viewMode === 'personal' && currentParticipantId && !isFinalized && (

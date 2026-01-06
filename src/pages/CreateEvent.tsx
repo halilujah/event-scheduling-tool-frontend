@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import clsx from 'clsx';
-import { format } from 'date-fns';
+import { format, isBefore, startOfDay, isToday } from 'date-fns';
 import DateSelector from '../components/DateSelector';
 import DayOfWeekSelector from '../components/DayOfWeekSelector';
 import TimeRangeSlider from '../components/TimeRangeSlider';
 import { api } from '../utils/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { TIMEZONE_GROUPS } from '../utils/timezones';
+import { detectUserTimezone, getTimezoneLabel } from '../utils/timezoneUtils';
+import { getRecentEvents, formatRelativeTime, addRecentEvent, type RecentEvent } from '../utils/recentEvents';
 
 type Tab = 'dates' | 'days';
 
@@ -21,7 +24,22 @@ const CreateEvent: React.FC = () => {
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('17:00');
-    const [timezone, setTimezone] = useState('Europe/Istanbul');
+    const [timezone, setTimezone] = useState('UTC');
+    const [detectedTimezone, setDetectedTimezone] = useState<string | null>(null);
+    const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
+
+    // Auto-detect user's timezone on mount
+    useEffect(() => {
+        const detected = detectUserTimezone();
+        setDetectedTimezone(detected);
+        setTimezone(detected);
+    }, []);
+
+    // Load recent events on mount
+    useEffect(() => {
+        const events = getRecentEvents(3);
+        setRecentEvents(events);
+    }, []);
 
     const handleDateSelect = (date: Date) => {
         setSelectedDates(prev => {
@@ -40,8 +58,52 @@ const CreateEvent: React.FC = () => {
     };
 
     const handleSubmit = async () => {
+        // 1. Validate organizer name
         if (!organizerName.trim()) {
             alert(t.createEvent.validationOrganizerName);
+            return;
+        }
+
+        // 2. Validate date/day selection based on active tab
+        if (activeTab === 'dates') {
+            if (selectedDates.length === 0) {
+                alert(t.createEvent.validationDates);
+                return;
+            }
+
+            // 3. Check for past dates
+            const hasPastDates = selectedDates.some(date =>
+                isBefore(startOfDay(date), startOfDay(new Date()))
+            );
+            if (hasPastDates) {
+                alert(t.createEvent.validationPastDates);
+                return;
+            }
+
+            // 4. Check if start time is in the past for today's date
+            const hasToday = selectedDates.some(date => isToday(date));
+            if (hasToday) {
+                const now = new Date();
+                const [hours, minutes] = startTime.split(':').map(Number);
+                const timeDate = new Date();
+                timeDate.setHours(hours, minutes, 0, 0);
+
+                if (isBefore(timeDate, now)) {
+                    alert(t.createEvent.validationPastTime);
+                    return;
+                }
+            }
+        } else {
+            // For 'days of week' mode
+            if (selectedDays.length === 0) {
+                alert(t.createEvent.validationDays);
+                return;
+            }
+        }
+
+        // 5. Validate time range
+        if (startTime >= endTime) {
+            alert(t.createEvent.validationTimeRange);
             return;
         }
 
@@ -62,6 +124,13 @@ const CreateEvent: React.FC = () => {
             // Store organizer ID in localStorage
             localStorage.setItem(`event_${response.eventId}_organizer`, organizerName.trim());
 
+            // Track recent event
+            addRecentEvent(
+                response.eventId,
+                title || 'Untitled Event',
+                'organizer'
+            );
+
             navigate(`/created/${response.eventId}`);
         } catch (error) {
             console.error('Failed to create event:', error);
@@ -71,18 +140,31 @@ const CreateEvent: React.FC = () => {
 
     return (
         <div className="container" style={{ paddingBottom: '5rem' }}>
-            {/* Header Section */}
-            {/* <div className="mb-8" style={{ marginTop: '2rem' }}>
-                <h2 className="text-xl font-bold mb-4 text-[var(--color-text-secondary)]">Recently visited</h2>
-                <div className="flex-col">
-                    {['meeting2', 'meeting1', 'test'].map((item, i) => (
-                        <div key={i} className="flex-between py-2 border-b border-[var(--color-border)]">
-                            <span style={{ color: 'var(--color-accent)', fontWeight: 'bold' }}>{item}</span>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Created 1 month ago</span>
-                        </div>
-                    ))}
+            {/* Recently Visited Events */}
+            {recentEvents.length > 0 && (
+                <div className="mb-8" style={{ marginTop: '2rem' }}>
+                    <h2 className="text-xl font-bold mb-4 text-[var(--color-text-secondary)]">
+                        {t.createEvent.recentlyVisited || 'Recently Visited'}
+                    </h2>
+                    <div className="flex-col">
+                        {recentEvents.map((event) => (
+                            <Link
+                                key={event.eventId}
+                                to={event.url}
+                                className="flex-between py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                                style={{ textDecoration: 'none' }}
+                            >
+                                <span style={{ color: 'var(--color-accent)', fontWeight: 'bold' }}>
+                                    {event.title}
+                                </span>
+                                <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                    {formatRelativeTime(event.visitedAt)}
+                                </span>
+                            </Link>
+                        ))}
+                    </div>
                 </div>
-            </div> */}
+            )}
 
             <div className="flex-col" style={{ gap: '2.5rem' }}>
                 {/* Organizer Name */}
@@ -154,6 +236,7 @@ const CreateEvent: React.FC = () => {
                         startTime={startTime}
                         endTime={endTime}
                         onChange={(s, e) => { setStartTime(s); setEndTime(e); }}
+                        selectedDates={selectedDates}
                     />
                 </section>
 
@@ -165,11 +248,25 @@ const CreateEvent: React.FC = () => {
                         value={timezone}
                         onChange={(e) => setTimezone(e.target.value)}
                     >
-                        <option value="Europe/Istanbul">Europe/Istanbul</option>
-                        <option value="UTC">UTC</option>
-                        <option value="America/New_York">America/New_York</option>
-                        <option value="Europe/London">Europe/London</option>
+                        {Object.entries(TIMEZONE_GROUPS).map(([region, timezones]) => (
+                            <optgroup key={region} label={region}>
+                                {timezones.map(tz => (
+                                    <option
+                                        key={tz.value}
+                                        value={tz.value}
+                                        title={`${tz.label} - ${tz.utcOffset}`}
+                                    >
+                                        {tz.label} ({tz.utcOffset})
+                                    </option>
+                                ))}
+                            </optgroup>
+                        ))}
                     </select>
+                    {detectedTimezone && timezone === detectedTimezone && (
+                        <p className="text-sm text-green-400 mt-2">
+                            ✓ Auto-detected: {getTimezoneLabel(timezone)}
+                        </p>
+                    )}
                 </section>
 
                 {/* Submit */}

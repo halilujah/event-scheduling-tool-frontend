@@ -39,6 +39,10 @@ export const tr: TranslationKeys = {
     validationDates: "Lütfen en az bir tarih seçin",
     validationDays: "Lütfen en az bir gün seçin",
     validationTimeRange: "Bitiş saati başlangıç saatinden sonra olmalıdır",
+    validationPastDates: "Geçmiş tarihler seçilemez",
+    validationPastTime: "Bugün için seçilen başlangıç saati geçmiş bir zamanda",
+    validationNoSelection: "Lütfen en az bir tarih veya gün seçin",
+    pastDateTooltip: "Geçmiş tarihler seçilemez",
     recentlyVisited: "Son ziyaret edilenler",
     createdAgo: "{time} önce oluşturuldu"
   },
