@@ -44,7 +44,14 @@ export const tr: TranslationKeys = {
     validationNoSelection: "Lütfen en az bir tarih veya gün seçin",
     pastDateTooltip: "Geçmiş tarihler seçilemez",
     recentlyVisited: "Son ziyaret edilenler",
-    createdAgo: "{time} önce oluşturuldu"
+    createdAgo: "{time} önce oluşturuldu",
+    votingDeadline: "Oylama Son Tarihi",
+    setDeadline: "Son tarih belirle",
+    deadlineSubtitle: "Bu süreden sonra oylama kilitlenecek",
+    deadlineDate: "Tarih",
+    deadlineTime: "Saat",
+    validationDeadlineDate: "Lütfen bir son tarih seçin",
+    validationDeadlinePast: "Son tarih gelecekte olmalı"
   },
 
   // Event Created Page
@@ -93,7 +100,10 @@ export const tr: TranslationKeys = {
     participants: "Katılımcılar",
     noParticipants: "Henüz katılımcı yok.",
     loading: "Etkinlik yükleniyor...",
-    organizer: "(Organizatör)"
+    organizer: "(Organizatör)",
+    votingDeadlineExpired: "Oylama süresi doldu. Artık oy veremezsiniz.",
+    votingDeadlineLocked: "Oylama kilitlendi - son tarih geçti",
+    waitingForOrganizer: "Organizatörün etkinliği sonlandırması bekleniyor"
   },
 
   // Participant Modal

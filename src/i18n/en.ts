@@ -42,7 +42,14 @@ export const en = {
     validationNoSelection: "Please select at least one date or day",
     pastDateTooltip: "Past dates cannot be selected",
     recentlyVisited: "Recently visited",
-    createdAgo: "Created {time} ago"
+    createdAgo: "Created {time} ago",
+    votingDeadline: "Voting Deadline",
+    setDeadline: "Set a deadline",
+    deadlineSubtitle: "Voting will be locked after this time",
+    deadlineDate: "Date",
+    deadlineTime: "Time",
+    validationDeadlineDate: "Please select a deadline date",
+    validationDeadlinePast: "Deadline must be in the future"
   },
 
   // Event Created Page
@@ -91,7 +98,10 @@ export const en = {
     participants: "Participants",
     noParticipants: "No participants yet.",
     loading: "Loading event...",
-    organizer: "(Organizer)"
+    organizer: "(Organizer)",
+    votingDeadlineExpired: "Voting deadline has passed. You can no longer submit votes.",
+    votingDeadlineLocked: "Voting is locked - deadline has passed",
+    waitingForOrganizer: "Waiting for organizer to finalize the event"
   },
 
   // Participant Modal

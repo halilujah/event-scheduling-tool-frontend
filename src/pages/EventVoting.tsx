@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Heatmap from '../components/Heatmap';
 import ParticipantList from '../components/ParticipantList';
+import CountdownTimer from '../components/CountdownTimer';
 import { addDays, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
-import { downloadICS } from '../utils/icsGenerator';
+import { downloadICS, getGoogleCalendarUrl } from '../utils/icsGenerator';
 import { Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { detectUserTimezone, convertTimeSlot, convertTime } from '../utils/timezoneUtils';
@@ -32,6 +33,8 @@ const EventVoting: React.FC = () => {
     const [finalizedTime, setFinalizedTime] = useState<string | null>(null);
     const [isOrganizer, setIsOrganizer] = useState(false);
     const [organizerName, setOrganizerName] = useState('');
+    const [votingDeadline, setVotingDeadline] = useState<string | null>(null);
+    const [votingLocked, setVotingLocked] = useState(false);
 
     // Detect user's timezone on mount
     useEffect(() => {
@@ -132,6 +135,23 @@ const EventVoting: React.FC = () => {
             setIsFinalized(event.isFinalized);
             setFinalizedTime(event.finalizedTime);
             setOrganizerName(event.organizerName);
+            setVotingDeadline(event.votingDeadline || null);
+
+            console.log('Event loaded:', {
+                eventId: event.eventId,
+                votingDeadline: event.votingDeadline,
+                deadlineTimezone: event.deadlineTimezone
+            });
+
+            // Check if deadline has already passed
+            if (event.votingDeadline) {
+                const deadlineTime = new Date(event.votingDeadline).getTime();
+                const now = new Date().getTime();
+                console.log('Deadline check:', { deadlineTime, now, isPassed: now >= deadlineTime });
+                if (now >= deadlineTime) {
+                    setVotingLocked(true);
+                }
+            }
 
             if (event.type === 'dates' && event.selectedDates.length > 0) {
                 setDates(event.selectedDates.map(d => parseISO(d)));
@@ -191,28 +211,11 @@ const EventVoting: React.FC = () => {
                                 .map(vote => vote.timeSlot);
                             setSelectedSlots(userVotes);
                         }
-                    } catch (e) {
-                        console.error('Failed to parse stored participant:', e);
-                    }
-                } else {
-                    // Auto-join organizer as participant
-                    try {
-                        const response = await api.addParticipant(eventId!, storedOrganizer!);
-                        setCurrentParticipantId(response.participantId);
-                        const updatedParticipants = dedupeNames([...participantsData.map(p => p.name), storedOrganizer!]);
-                        setParticipants(updatedParticipants);
-
-                        // Store participant identity for this event
-                        localStorage.setItem(`event_${eventId}_participant`, JSON.stringify({
-                            participantId: response.participantId,
-                            name: storedOrganizer!
-                        }));
-
-                        // Store name globally for future events
-                        localStorage.setItem('user_display_name', storedOrganizer!);
-                    } catch (error) {
-                        console.error('Failed to auto-join organizer:', error);
-                    }
+                } catch (e) {
+                    console.error('Failed to parse stored participant:', e);
+                }
+                } else if (storedOrganizer && storedOrganizer.trim() && !userName.trim()) {
+                    setUserName(storedOrganizer);
                 }
             } else {
                 // Check if user has already joined this specific event
@@ -242,29 +245,7 @@ const EventVoting: React.FC = () => {
                     // Check if they have a saved name from another event
                     const savedName = localStorage.getItem('user_display_name');
                     if (savedName && savedName.trim()) {
-                        // Auto-join with saved name
-                        try {
-                            const response = await api.addParticipant(eventId!, savedName);
-                            setCurrentParticipantId(response.participantId);
-                            const updatedParticipants = dedupeNames([...participantsData.map(p => p.name), savedName]);
-                            setParticipants(updatedParticipants);
-
-                            // Store participant identity for this event
-                            localStorage.setItem(`event_${eventId}_participant`, JSON.stringify({
-                                participantId: response.participantId,
-                                name: savedName
-                            }));
-
-                            console.log(`Auto-joined as ${savedName}`);
-                        } catch (error: any) {
-                            console.error('Failed to auto-join with saved name:', error);
-                            // If auto-join fails (e.g., blocked), prefill the name for manual join
-                            if (error.message && error.message.includes('blocked')) {
-                                alert('You have been blocked from this event.');
-                            } else {
-                                setUserName(savedName); // Prefill for manual join
-                            }
-                        }
+                        setUserName(savedName);
                     }
                 }
             }
@@ -326,6 +307,10 @@ const EventVoting: React.FC = () => {
         }
     };
 
+    const handleDeadlineExpire = () => {
+        setVotingLocked(true);
+    };
+
     // Auto-save votes when selection changes
     useEffect(() => {
         const autoSaveVotes = async () => {
@@ -336,8 +321,12 @@ const EventVoting: React.FC = () => {
             try {
                 await api.submitVotes(eventId, currentParticipantId, selectedSlots);
                 console.log('Votes auto-saved');
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Failed to auto-save votes:', error);
+                // Check if deadline has passed (403 error from backend)
+                if (error.message && error.message.includes('deadline')) {
+                    setVotingLocked(true);
+                }
             }
         };
 
@@ -424,13 +413,46 @@ const EventVoting: React.FC = () => {
                         <p className="text-sm text-[var(--color-text-muted)] mt-2 mb-3">
                             {t.eventVoting.votingClosed}
                         </p>
-                        <button
-                            onClick={handleDownloadICS}
-                            className="btn-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
-                        >
-                            <Download size={16} />
-                            {t.eventVoting.downloadICS}
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleDownloadICS}
+                                className="btn-primary px-3 py-2 rounded-lg flex items-start gap-2 text-xs flex-1"
+                            >
+                                <Download size={16} className="flex-shrink-0 mt-0.5" />
+                                <span className="text-left leading-tight">Download Calendar Event (.ics)</span>
+                            </button>
+                            <a
+                                href={getGoogleCalendarUrl(eventTitle, convertedFinalizedTime || '', timezone, organizerName)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-primary px-3 py-2 rounded-lg flex items-start gap-2 text-xs flex-1"
+                            >
+                                <span className="text-base flex-shrink-0">📅</span>
+                                <span className="text-left leading-tight">Add to Google Calendar</span>
+                            </a>
+                        </div>
+                    </div>
+                ) : votingLocked && votingDeadline ? (
+                    <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+                        <p className="text-red-400 font-bold flex items-center gap-2">
+                            <span className="text-2xl">🔒</span>
+                            {t.eventVoting.votingDeadlineExpired}
+                        </p>
+                        <p className="text-sm text-[var(--color-text-muted)] mt-2">
+                            {t.eventVoting.waitingForOrganizer}
+                        </p>
+                    </div>
+                ) : votingDeadline ? (
+                    <div className="mt-4 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg flex items-center justify-between">
+                        <div>
+                            <p className="text-[var(--color-text-secondary)] text-sm mb-1">
+                                {t.eventVoting.selectSlots}
+                            </p>
+                            <p className="text-xs text-[var(--color-text-muted)]">
+                                Voting deadline approaching
+                            </p>
+                        </div>
+                        <CountdownTimer deadline={votingDeadline} onExpire={handleDeadlineExpire} />
                     </div>
                 ) : (
                     <p className="text-[var(--color-text-secondary)] mt-2">
@@ -467,7 +489,7 @@ const EventVoting: React.FC = () => {
                             startTime={convertedStartTime}
                             endTime={convertedEndTime}
                             votes={convertedVotes}
-                            viewMode={isFinalized ? 'aggregate' : viewMode}
+                            viewMode={isFinalized || votingLocked ? 'aggregate' : viewMode}
                             selectedSlots={heatmapSelectedSlots}
                             onSlotsChange={isOrganizer && !isFinalized && viewMode === 'aggregate' ? (slots) => {
                                 const slotToFinalize = slots[slots.length - 1];
@@ -476,7 +498,7 @@ const EventVoting: React.FC = () => {
                                     const organizerSlot = convertTimeSlot(slotToFinalize, userTimezone, timezone);
                                     handleFinalize(organizerSlot);
                                 }
-                            } : (isFinalized ? () => { } : (slots) => {
+                            } : (isFinalized || votingLocked ? () => { } : (slots) => {
                                 // Convert back to organizer timezone before saving
                                 const organizerSlots = slots.map(slot => convertTimeSlot(slot, userTimezone, timezone));
                                 setSelectedSlots(organizerSlots);
@@ -487,7 +509,7 @@ const EventVoting: React.FC = () => {
                             viewerTimezone={userTimezone}
                         />
 
-                        {viewMode === 'personal' && currentParticipantId && !isFinalized && (
+                        {viewMode === 'personal' && currentParticipantId && !isFinalized && !votingLocked && (
                             <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
                                 {t.eventVoting.autoSaved}
                             </p>
@@ -500,6 +522,11 @@ const EventVoting: React.FC = () => {
                         {isFinalized && (
                             <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
                                 {t.eventVoting.votingLocked}
+                            </p>
+                        )}
+                        {votingLocked && !isFinalized && (
+                            <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
+                                {t.eventVoting.votingDeadlineLocked}
                             </p>
                         )}
                     </div>

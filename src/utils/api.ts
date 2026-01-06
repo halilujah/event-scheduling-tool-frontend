@@ -10,6 +10,8 @@ interface CreateEventPayload {
   endTime: string;
   timezone: string;
   organizerName: string;
+  votingDeadline?: string;      // Optional ISO timestamp in UTC
+  deadlineTimezone?: string;    // Optional organizer's timezone
 }
 
 interface CreateEventResponse {
@@ -30,6 +32,8 @@ interface Event {
   isFinalized: boolean;
   finalizedTime: string | null;
   createdAt: string;
+  votingDeadline?: string;      // Optional ISO timestamp in UTC
+  deadlineTimezone?: string;    // Optional organizer's timezone
 }
 
 interface Participant {

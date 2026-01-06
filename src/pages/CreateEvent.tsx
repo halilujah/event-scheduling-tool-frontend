@@ -27,6 +27,9 @@ const CreateEvent: React.FC = () => {
     const [timezone, setTimezone] = useState('UTC');
     const [detectedTimezone, setDetectedTimezone] = useState<string | null>(null);
     const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
+    const [hasDeadline, setHasDeadline] = useState(false);
+    const [deadlineDate, setDeadlineDate] = useState('');
+    const [deadlineTime, setDeadlineTime] = useState('23:59');
 
     // Auto-detect user's timezone on mount
     useEffect(() => {
@@ -107,10 +110,39 @@ const CreateEvent: React.FC = () => {
             return;
         }
 
+        // 6. Validate deadline if set
+        if (hasDeadline) {
+            if (!deadlineDate) {
+                alert(t.createEvent.validationDeadlineDate || 'Please select a deadline date');
+                return;
+            }
+
+            const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+            const now = new Date();
+
+            if (deadlineDateTime <= now) {
+                alert(t.createEvent.validationDeadlinePast || 'Deadline must be in the future');
+                return;
+            }
+        }
+
         try {
             const formattedDates = selectedDates.map(date => format(date, 'yyyy-MM-dd'));
 
-            const response = await api.createEvent({
+            // Prepare deadline in UTC if set
+            let votingDeadline: string | undefined;
+            let deadlineTimezone: string | undefined;
+
+            if (hasDeadline && deadlineDate) {
+                const { fromZonedTime } = await import('date-fns-tz');
+                const localDeadline = new Date(`${deadlineDate}T${deadlineTime}`);
+                const utcDeadline = fromZonedTime(localDeadline, timezone);
+                votingDeadline = utcDeadline.toISOString();
+                deadlineTimezone = timezone;
+                console.log('Deadline set:', { localDeadline, utcDeadline, votingDeadline, deadlineTimezone });
+            }
+
+            const payload = {
                 title: title || 'Untitled Event',
                 type: activeTab,
                 selectedDates: formattedDates,
@@ -119,7 +151,11 @@ const CreateEvent: React.FC = () => {
                 endTime,
                 timezone,
                 organizerName: organizerName.trim(),
-            });
+                votingDeadline,
+                deadlineTimezone,
+            };
+            console.log('Sending payload to backend:', payload);
+            const response = await api.createEvent(payload);
 
             // Store organizer ID in localStorage
             localStorage.setItem(`event_${response.eventId}_organizer`, organizerName.trim());
@@ -266,6 +302,82 @@ const CreateEvent: React.FC = () => {
                         <p className="text-sm text-green-400 mt-2">
                             ✓ Auto-detected: {getTimezoneLabel(timezone)}
                         </p>
+                    )}
+                </section>
+
+                {/* Voting Deadline (OPTIONAL) */}
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                            {t.createEvent.votingDeadline || 'Voting Deadline'}
+                        </h2>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                            <span className="text-sm text-[var(--color-text-secondary)]">
+                                {t.createEvent.setDeadline || 'Set a deadline'}
+                            </span>
+                            <div
+                                onClick={() => setHasDeadline(!hasDeadline)}
+                                style={{
+                                    position: 'relative',
+                                    width: '44px',
+                                    height: '24px',
+                                    backgroundColor: hasDeadline ? '#7f5af0' : '#374151',
+                                    borderRadius: '12px',
+                                    transition: 'background-color 0.2s',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        top: '2px',
+                                        left: hasDeadline ? '22px' : '2px',
+                                        width: '20px',
+                                        height: '20px',
+                                        backgroundColor: '#ffffff',
+                                        borderRadius: '50%',
+                                        transition: 'left 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                    }}
+                                />
+                            </div>
+                        </label>
+                    </div>
+
+                    {hasDeadline && (
+                        <div>
+                            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                                {t.createEvent.deadlineSubtitle || 'Voting will be locked after this time'}
+                            </p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2 text-[var(--color-text-secondary)]">
+                                        {t.createEvent.deadlineDate || 'Date'}
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className="input-field"
+                                        value={deadlineDate}
+                                        onChange={(e) => setDeadlineDate(e.target.value)}
+                                        min={format(new Date(), 'yyyy-MM-dd')}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2 text-[var(--color-text-secondary)]">
+                                        {t.createEvent.deadlineTime || 'Time'}
+                                    </label>
+                                    <input
+                                        type="time"
+                                        className="input-field"
+                                        value={deadlineTime}
+                                        onChange={(e) => setDeadlineTime(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                                ⏰ Deadline will be set in your timezone: {timezone}
+                            </p>
+                        </div>
                     )}
                 </section>
 

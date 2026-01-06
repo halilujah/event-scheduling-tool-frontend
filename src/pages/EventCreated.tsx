@@ -7,9 +7,10 @@ import { useLanguage } from '../contexts/LanguageContext';
 import Heatmap from '../components/Heatmap';
 import ParticipantList from '../components/ParticipantList';
 import ParticipantModal from '../components/ParticipantModal';
+import CountdownTimer from '../components/CountdownTimer';
 import { api } from '../utils/api';
 import { getSocket, joinEventRoom, leaveEventRoom } from '../utils/socket';
-import { downloadICS } from '../utils/icsGenerator';
+import { downloadICS, getGoogleCalendarUrl } from '../utils/icsGenerator';
 import { addRecentEvent } from '../utils/recentEvents';
 
 interface Participant {
@@ -37,6 +38,8 @@ const EventCreated: React.FC = () => {
     const [finalizedTime, setFinalizedTime] = useState<string | null>(null);
     const [organizerName, setOrganizerName] = useState('');
     const [selectedParticipant, setSelectedParticipant] = useState<{ id: string; name: string } | null>(null);
+    const [votingDeadline, setVotingDeadline] = useState<string | null>(null);
+    const [votingLocked, setVotingLocked] = useState(false);
 
     const dedupeParticipants = (participantList: Participant[]) => {
         const seen = new Set<string>();
@@ -120,6 +123,16 @@ const EventCreated: React.FC = () => {
             setOrganizerName(event.organizerName);
             setIsFinalized(event.isFinalized);
             setFinalizedTime(event.finalizedTime);
+            setVotingDeadline(event.votingDeadline || null);
+
+            // Check if deadline has already passed
+            if (event.votingDeadline) {
+                const deadlineTime = new Date(event.votingDeadline).getTime();
+                const now = new Date().getTime();
+                if (now >= deadlineTime) {
+                    setVotingLocked(true);
+                }
+            }
 
             // Track recent event visit (always organizer on this page)
             addRecentEvent(event.eventId || id!, event.title, 'organizer');
@@ -211,6 +224,10 @@ const EventCreated: React.FC = () => {
         }
     };
 
+    const handleDeadlineExpire = () => {
+        setVotingLocked(true);
+    };
+
     return (
         <div className="container pb-20 pt-8">
             <div className="max-w-6xl mx-auto">
@@ -281,6 +298,26 @@ const EventCreated: React.FC = () => {
                                     )}
                                 </div>
 
+                                {/* Voting Deadline Countdown */}
+                                {votingDeadline && !isFinalized && !votingLocked && (
+                                    <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg flex items-center justify-between">
+                                        <span className="text-sm text-[var(--color-text-secondary)]">
+                                            Voting deadline:
+                                        </span>
+                                        <CountdownTimer deadline={votingDeadline} onExpire={handleDeadlineExpire} />
+                                    </div>
+                                )}
+
+                                {/* Voting Locked Banner */}
+                                {votingLocked && !isFinalized && (
+                                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+                                        <p className="text-red-400 text-sm flex items-center gap-2">
+                                            <span>🔒</span>
+                                            Voting deadline has passed - participants can no longer vote
+                                        </p>
+                                    </div>
+                                )}
+
                                 {isFinalized && finalizedTime ? (
                                     <div className="text-center py-12">
                                         <div className="text-6xl mb-4">🎉</div>
@@ -291,13 +328,24 @@ const EventCreated: React.FC = () => {
                                         <p className="text-sm text-[var(--color-text-muted)] mb-6">
                                             {t.eventCreated.votingClosed}
                                         </p>
-                                        <button
-                                            onClick={handleDownloadICS}
-                                            className="btn-primary px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
-                                        >
-                                            <Download size={20} />
-                                            {t.eventCreated.downloadICS}
-                                        </button>
+                                        <div className="flex flex-wrap gap-3 justify-center max-w-md mx-auto">
+                                            <button
+                                                onClick={handleDownloadICS}
+                                                className="btn-primary px-4 py-3 rounded-lg flex items-start gap-2 text-sm flex-1 min-w-0"
+                                            >
+                                                <Download size={18} className="flex-shrink-0 mt-0.5" />
+                                                <span className="text-left leading-tight break-words">Download Calendar Event (.ics)</span>
+                                            </button>
+                                            <a
+                                                href={getGoogleCalendarUrl(eventTitle, finalizedTime || '', timezone, organizerName)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn-primary px-4 py-3 rounded-lg flex items-start gap-2 text-sm flex-1 min-w-0"
+                                            >
+                                                <span className="text-xl flex-shrink-0">📅</span>
+                                                <span className="text-left leading-tight break-words">Add to Google Calendar</span>
+                                            </a>
+                                        </div>
                                     </div>
                                 ) : (
                                     <>
