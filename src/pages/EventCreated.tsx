@@ -364,6 +364,7 @@ const EventCreated: React.FC = () => {
                                             } : () => { }}
                                             isFinalized={isFinalized}
                                             isOrganizerInAggregateMode={isOrganizer && !isFinalized}
+                                            organizerTimezone={timezone}
                                         />
                                         <p className="text-[var(--color-text-muted)] text-sm mt-4 text-center">
                                             {isOrganizer && !isFinalized

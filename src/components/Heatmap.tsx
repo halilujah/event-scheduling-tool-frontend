@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { format, addMinutes } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface HeatmapProps {
@@ -33,6 +34,7 @@ const Heatmap: React.FC<HeatmapProps> = ({
     const { t } = useLanguage();
     const [internalSelectedSlots, setInternalSelectedSlots] = useState<string[]>([]);
     const selectedSlots = externalSelectedSlots !== undefined ? externalSelectedSlots : internalSelectedSlots;
+    const displayTimezone = viewerTimezone || organizerTimezone;
 
     const [isDragging, setIsDragging] = useState(false);
     const [dragMode, setDragMode] = useState<'select' | 'deselect' | null>(null);
@@ -54,8 +56,14 @@ const Heatmap: React.FC<HeatmapProps> = ({
         current = addMinutes(current, 30); // 30 min intervals
     }
 
+    const getDisplayDate = (date: Date) => {
+        return displayTimezone ? toZonedTime(date, displayTimezone) : date;
+    };
+
+    const getDateKey = (date: Date) => format(getDisplayDate(date), 'yyyy-MM-dd');
+
     const toggleSlot = (date: Date, time: string, forceMode?: 'select' | 'deselect') => {
-        const key = `${format(date, 'yyyy-MM-dd')} ${time}`;
+        const key = `${getDateKey(date)} ${time}`;
         let newSlots: string[];
 
         if (forceMode === 'select') {
@@ -163,21 +171,22 @@ const Heatmap: React.FC<HeatmapProps> = ({
     };
 
     const getDayAbbrWithDate = (date: Date, index: number, allDates: Date[]) => {
-        const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        const displayDate = getDisplayDate(date);
+        const dayIndex = displayDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
         const dayAbbr = t.dateTime.daysShort[dayKeys[dayIndex]];
-        const dayNum = date.getDate();
+        const dayNum = displayDate.getDate();
 
         // Get month abbreviation
         const monthKeys = [
             'january', 'february', 'march', 'april', 'may', 'june',
             'july', 'august', 'september', 'october', 'november', 'december'
         ] as const;
-        const monthAbbr = t.dateTime.months[monthKeys[date.getMonth()]].substring(0, 3);
+        const monthAbbr = t.dateTime.months[monthKeys[displayDate.getMonth()]].substring(0, 3);
 
         // Show year only when it changes (compare with previous date)
-        const year = date.getFullYear();
-        const prevYear = index > 0 ? allDates[index - 1].getFullYear() : null;
+        const year = displayDate.getFullYear();
+        const prevYear = index > 0 ? getDisplayDate(allDates[index - 1]).getFullYear() : null;
         const showYear = prevYear === null || prevYear !== year;
 
         // Line 1: Day + Date (e.g., "Mon 15")
@@ -226,7 +235,7 @@ const Heatmap: React.FC<HeatmapProps> = ({
                             {time}
                         </div>
                         {dates.map((date, i) => {
-                            const key = `${format(date, 'yyyy-MM-dd')} ${time}`;
+                            const key = `${getDateKey(date)} ${time}`;
                             const isSelected = selectedSlots.includes(key);
                             const voteCount = votes[key] || 0;
                             const isFinalizedSlot = isFinalized && isSelected;
